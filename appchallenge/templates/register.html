@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Register{% endblock %}
+{% load static %}
+{% block content %}
+<style>
+    body {
+
+            background: url("{% static 'images/pool-water.jpg.jpg' %}") no-repeat center center fixed;
+            background-size: cover;
+        }
+
+</style>
+<div class="register-container">
+    <h2>Register</h2>
+
+    {% if messages %}
+        {% for message in messages %}
+            <p class="message">{{ message }}</p>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post" class="register-form">
+        {% csrf_token %}
+
+        {% for field in form %}
+            <div class="form-group">
+                {{ field.label_tag }}
+                {{ field }}
+                <div class="error">{{ field.errors }}</div>
+            </div>
+        {% endfor %}
+
+        <button type="submit">Register</button>
+    </form>
+</div>
+{% endblock %}

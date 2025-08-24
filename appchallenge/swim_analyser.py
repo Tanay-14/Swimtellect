@@ -1,0 +1,611 @@
+import cv2
+import os
+import mediapipe as mp
+import numpy as np
+from dotenv import load_dotenv
+import zhipuai
+
+# Load environment variables for Zhipu AI
+load_dotenv()
+client = zhipuai.ZhipuAI(api_key=os.getenv('BIGMODEL_API_KEY'))
+
+def analyze_media(file_path):
+    if file_path.lower().endswith((".png",".jpg",".jpeg")):
+        return analyze_image(file_path)
+    elif file_path.lower().endswith((".mp4",".mov",".avi")):
+        return analyze_video(file_path)
+    return "file format not supported"
+
+def calculate_angle(a, b, c):
+    a = np.array(a)
+    b = np.array(b)
+    c = np.array(c)
+    radians = np.arctan2(c[1]-b[1], c[0]-b[0]) - np.arctan2(a[1]-b[1], a[0]-b[0])
+    angle = np.abs(radians*180.0/np.pi)
+    if angle > 180.0:
+        angle = 360 - angle
+    return angle
+
+def analyze_image_with_variables(file_path):
+    """Analyze image and return all important variables and data"""
+    
+    # Initialize MediaPipe Pose
+    pose = mp.solutions.pose.Pose()
+    image = cv2.imread(file_path)
+    
+    if image is None:
+        return {
+            'error': 'Could not load image',
+            'landmarks': None,
+            'analysis_data': None,
+            'feedback': 'Image could not be loaded'
+        }
+    
+    # Process image
+    results = pose.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    
+    if not results.pose_landmarks:
+        return {
+            'error': 'No person detected',
+            'landmarks': None,
+            'analysis_data': None,
+            'feedback': 'No person detected in the image'
+        }
+    
+    # Extract all important landmarks
+    landmarks = results.pose_landmarks.landmark
+    h, w, _ = image.shape
+    
+    # Key landmarks for swimming analysis
+    key_landmarks = {
+        'nose': landmarks[mp.solutions.pose.PoseLandmark.NOSE],
+        'left_shoulder': landmarks[mp.solutions.pose.PoseLandmark.LEFT_SHOULDER],
+        'right_shoulder': landmarks[mp.solutions.pose.PoseLandmark.RIGHT_SHOULDER],
+        'left_hip': landmarks[mp.solutions.pose.PoseLandmark.LEFT_HIP],
+        'right_hip': landmarks[mp.solutions.pose.PoseLandmark.RIGHT_HIP],
+        'left_elbow': landmarks[mp.solutions.pose.PoseLandmark.LEFT_ELBOW],
+        'right_elbow': landmarks[mp.solutions.pose.PoseLandmark.RIGHT_ELBOW],
+        'left_wrist': landmarks[mp.solutions.pose.PoseLandmark.LEFT_WRIST],
+        'right_wrist': landmarks[mp.solutions.pose.PoseLandmark.RIGHT_WRIST],
+        'left_ankle': landmarks[mp.solutions.pose.PoseLandmark.LEFT_ANKLE],
+        'right_ankle': landmarks[mp.solutions.pose.PoseLandmark.RIGHT_ANKLE],
+        'left_knee': landmarks[mp.solutions.pose.PoseLandmark.LEFT_KNEE],
+        'right_knee': landmarks[mp.solutions.pose.PoseLandmark.RIGHT_KNEE]
+    }
+    
+    # Convert landmarks to pixel coordinates
+    pixel_coords = {}
+    for name, landmark in key_landmarks.items():
+        pixel_coords[name] = {
+            'x': landmark.x * w,
+            'y': landmark.y * h,
+            'z': landmark.z,
+            'visibility': landmark.visibility
+        }
+    
+    # Calculate important angles
+    angles = {}
+    
+    # Left arm angle
+    left_shoulder_coords = [pixel_coords['left_shoulder']['x'], pixel_coords['left_shoulder']['y']]
+    left_elbow_coords = [pixel_coords['left_elbow']['x'], pixel_coords['left_elbow']['y']]
+    left_wrist_coords = [pixel_coords['left_wrist']['x'], pixel_coords['left_wrist']['y']]
+    angles['left_elbow'] = calculate_angle(left_shoulder_coords, left_elbow_coords, left_wrist_coords)
+    
+    # Right arm angle
+    right_shoulder_coords = [pixel_coords['right_shoulder']['x'], pixel_coords['right_shoulder']['y']]
+    right_elbow_coords = [pixel_coords['right_elbow']['x'], pixel_coords['right_elbow']['y']]
+    right_wrist_coords = [pixel_coords['right_wrist']['x'], pixel_coords['right_wrist']['y']]
+    angles['right_elbow'] = calculate_angle(right_shoulder_coords, right_elbow_coords, right_wrist_coords)
+    
+    # Left leg angle
+    left_hip_coords = [pixel_coords['left_hip']['x'], pixel_coords['left_hip']['y']]
+    left_knee_coords = [pixel_coords['left_knee']['x'], pixel_coords['left_knee']['y']]
+    left_ankle_coords = [pixel_coords['left_ankle']['x'], pixel_coords['left_ankle']['y']]
+    angles['left_knee'] = calculate_angle(left_hip_coords, left_knee_coords, left_ankle_coords)
+    
+    # Right leg angle
+    right_hip_coords = [pixel_coords['right_hip']['x'], pixel_coords['right_hip']['y']]
+    right_knee_coords = [pixel_coords['right_knee']['x'], pixel_coords['right_knee']['y']]
+    right_ankle_coords = [pixel_coords['right_ankle']['x'], pixel_coords['right_ankle']['y']]
+    angles['right_knee'] = calculate_angle(right_hip_coords, right_knee_coords, right_ankle_coords)
+    
+    # Body alignment analysis
+    avg_shoulder_y = (key_landmarks['left_shoulder'].y + key_landmarks['right_shoulder'].y) / 2
+    avg_hip_y = (key_landmarks['left_hip'].y + key_landmarks['right_hip'].y) / 2
+    alignment_diff = abs(avg_shoulder_y - avg_hip_y)
+    
+    # Hand entry analysis
+    left_hand_entry_diff = abs(pixel_coords['left_shoulder']['x'] - pixel_coords['left_wrist']['x'])
+    right_hand_entry_diff = abs(pixel_coords['right_shoulder']['x'] - pixel_coords['right_wrist']['x'])
+    
+    # Posture analysis
+    nose_y = key_landmarks['nose'].y
+    left_shoulder_y = key_landmarks['left_shoulder'].y
+    posture_good = nose_y > left_shoulder_y
+    
+    # Compile analysis data
+    analysis_data = {
+        'image_dimensions': {'width': w, 'height': h},
+        'angles': angles,
+        'alignment_diff': alignment_diff,
+        'hand_entry_diffs': {
+            'left': left_hand_entry_diff,
+            'right': right_hand_entry_diff
+        },
+        'posture_good': posture_good,
+        'landmark_visibility': {name: coords['visibility'] for name, coords in pixel_coords.items()}
+    }
+    
+    # Generate feedback
+    feedback = []
+    
+    # Posture feedback
+    if posture_good:
+        feedback.append("Posture is right.")
+    else:
+        feedback.append("Posture is not right.")
+    
+    # Body alignment feedback
+    required_landmarks = [key_landmarks['left_shoulder'], key_landmarks['right_shoulder'], 
+                         key_landmarks['left_hip'], key_landmarks['right_hip']]
+    if any(lm.visibility < 0.5 for lm in required_landmarks):
+        feedback.append("Cannot assess body alignment: full body not visible in the image.")
+    else:
+        if alignment_diff < 0.05:
+            feedback.append("Body alignment is good (body is straight).")
+        else:
+            feedback.append("Body alignment could be improved (body is not straight).")
+    
+    # Arm angle feedback
+    for side in ['left', 'right']:
+        angle = angles[f'{side}_elbow']
+        feedback.append(f"{side.capitalize()} elbow angle: {angle:.1f} degrees.")
+        if angle > 160:
+            feedback.append(f"{side.capitalize()} arm is well extended.")
+        elif angle < 100:
+            feedback.append(f"{side.capitalize()} arm is too bent.")
+        else:
+            feedback.append(f"{side.capitalize()} arm is moderately bent.")
+    
+    # Hand entry feedback
+    threshold = 40  # pixels
+    for side in ['left', 'right']:
+        diff = analysis_data['hand_entry_diffs'][side]
+        if diff < threshold:
+            feedback.append(f"{side.capitalize()} hand entry is good (in line with shoulder).")
+        else:
+            feedback.append(f"{side.capitalize()} hand entry could be improved (not in line with shoulder).")
+    
+    return {
+        'error': None,
+        'landmarks': key_landmarks,
+        'pixel_coords': pixel_coords,
+        'analysis_data': analysis_data,
+        'feedback': " ".join(feedback)
+    }
+
+def generate_zhipu_analysis(image_path, stroke_type="freestyle"):
+    """Generate analysis using Zhipu AI with all the pose data"""
+    
+    # Get all analysis data
+    analysis_result = analyze_image_with_variables(image_path)
+    
+    if analysis_result['error']:
+        return analysis_result['feedback']
+    
+    # Prepare data for Zhipu AI
+    analysis_data = analysis_result['analysis_data']
+    landmarks = analysis_result['landmarks']
+    pixel_coords = analysis_result['pixel_coords']
+    
+    # Create detailed prompt for Zhipu AI
+    prompt = f"""
+As a professional swimming coach, analyze this swimming technique data for {stroke_type} stroke in english in second person:
+
+TECHNICAL DATA:
+- Left elbow angle: {analysis_data['angles']['left_elbow']:.1f} degrees
+- Right elbow angle: {analysis_data['angles']['right_elbow']:.1f} degrees
+- Left knee angle: {analysis_data['angles']['left_knee']:.1f} degrees
+- Right knee angle: {analysis_data['angles']['right_knee']:.1f} degrees
+- Body alignment difference: {analysis_data['alignment_diff']:.3f}
+- Left hand entry distance from shoulder: {analysis_data['hand_entry_diffs']['left']:.1f} pixels
+- Right hand entry distance from shoulder: {analysis_data['hand_entry_diffs']['right']:.1f} pixels
+- Posture assessment: {'Good' if analysis_data['posture_good'] else 'Needs improvement'}
+
+LANDMARK POSITIONS (normalized coordinates):
+- Nose: ({landmarks['nose'].x:.3f}, {landmarks['nose'].y:.3f})
+- Left shoulder: ({landmarks['left_shoulder'].x:.3f}, {landmarks['left_shoulder'].y:.3f})
+- Right shoulder: ({landmarks['right_shoulder'].x:.3f}, {landmarks['right_shoulder'].y:.3f})
+- Left hip: ({landmarks['left_hip'].x:.3f}, {landmarks['left_hip'].y:.3f})
+- Right hip: ({landmarks['right_hip'].x:.3f}, {landmarks['right_hip'].y:.3f})
+- Left knee: ({landmarks['left_knee'].x:.3f}, {landmarks['left_knee'].y:.3f})
+- Right knee: ({landmarks['right_knee'].x:.3f}, {landmarks['right_knee'].y:.3f})
+- Left ankle: ({landmarks['left_ankle'].x:.3f}, {landmarks['left_ankle'].y:.3f})
+- Right ankle: ({landmarks['right_ankle'].x:.3f}, {landmarks['right_ankle'].y:.3f})
+
+IMPORTANT ANALYSIS NOTES:
+- For freestyle stroke: If the knee and ankle Y coordinates are significantly higher (larger values) than the hip Y coordinates, this indicates your legs are sinking below your torso, which creates drag and slows you down.
+- In proper freestyle technique, your legs should be near the surface of the water, not dropping below your body line.
+
+Please only these sections and provide in humanlike language in english in second person:
+1. Technical assessment of the stroke technique
+2. Specific recommendations for improvement
+3. Training tips and specific drills for this specific stroke that would help the swimmer improve their technique
+4. Overall score (1-10) with explanation
+... Only include the four requested sections exactly as listed. Do not add any other sections or headings.
+Focus on {stroke_type} stroke technique specifically.
+"""
+    
+    try:
+        response = client.chat.completions.create(
+            model="glm-4",
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=1000,
+            temperature=0.7
+        )
+        
+        return response.choices[0].message.content
+        
+    except Exception as e:
+        return f"Error generating AI analysis: {str(e)}"
+
+def generate_video_zhipu_analysis(video_path, stroke_type="freestyle"):
+    """Generate AI analysis for video using frame-by-frame data"""
+    
+    # First, analyze the video to get frame data
+    video_analysis_result = analyze_video(video_path)
+    
+    if "Error" in video_analysis_result:
+        return video_analysis_result
+    
+    # For AI analysis, we'll analyze a few key frames
+    import cv2
+    cap = cv2.VideoCapture(video_path)
+    
+    if not cap.isOpened():
+        return "Error: Could not open video file for AI analysis"
+    
+    # Get video properties
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    print(f"total_frames: {total_frames}")
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    duration = total_frames / fps if fps > 0 else 0
+    print(f"duration: {duration}")
+    
+    # Analyze 3-5 key frames for AI analysis
+    key_frames = []
+    frame_positions = [0.25, 0.5, 0.75]  # Analyze at 25%, 50%, and 75% of video
+    
+    for position in frame_positions:
+        frame_number = int(total_frames * position)
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+        ret, frame = cap.read()
+        print(f"Frame {frame_number} read: {ret}")
+        
+        if ret:
+            # Save frame temporarily with high quality
+            temp_frame_path = f"ai_frame_{position}.jpg"
+            
+            # Ensure frame is in BGR format and save with high quality
+            if frame is not None and frame.size > 0:
+                # Convert to RGB for better compatibility
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                # Convert back to BGR for saving
+                frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+                
+                # Save with high quality JPEG compression
+                success = cv2.imwrite(temp_frame_path, frame_bgr, [cv2.IMWRITE_JPEG_QUALITY, 95])
+                print(f"AI frame saved successfully: {success}")
+                
+                if success:
+                    # Analyze the frame
+                    frame_analysis = analyze_image_with_variables(temp_frame_path)
+                    
+                    if frame_analysis['error'] is None:
+                        key_frames.append({
+                            'position': position,
+                            'time_seconds': frame_number / fps,
+                            'analysis': frame_analysis
+                        })
+                    else:
+                        print(f"AI frame analysis error: {frame_analysis['error']}")
+                else:
+                    print(f"Failed to save AI frame at position {position}")
+            
+            # Clean up
+            import os
+            if os.path.exists(temp_frame_path):
+                os.remove(temp_frame_path)
+    
+    cap.release()
+    
+    if not key_frames:
+        return "Error: No valid frames could be analyzed for AI assessment"
+    
+    # Prepare data for AI analysis
+    first_frame = key_frames[0]['analysis']
+    middle_frame = key_frames[len(key_frames)//2]['analysis']
+    last_frame = key_frames[-1]['analysis']
+    
+    # Create comprehensive prompt for video analysis
+    prompt = f"""
+As a professional swimming coach, analyze this swimming video data for {stroke_type} stroke in english in second person:
+
+VIDEO INFORMATION:
+- Video duration: {duration:.1f} seconds
+- Frames analyzed: {len(key_frames)} key frames
+- Stroke type: {stroke_type}
+
+TECHNICAL DATA (averaged across key frames):
+- Left elbow angles: {first_frame['analysis_data']['angles']['left_elbow']:.1f}°, {middle_frame['analysis_data']['angles']['left_elbow']:.1f}°, {last_frame['analysis_data']['angles']['left_elbow']:.1f}°
+- Right elbow angles: {first_frame['analysis_data']['angles']['right_elbow']:.1f}°, {middle_frame['analysis_data']['angles']['right_elbow']:.1f}°, {last_frame['analysis_data']['angles']['right_elbow']:.1f}°
+- Left knee angles: {first_frame['analysis_data']['angles']['left_knee']:.1f}°, {middle_frame['analysis_data']['angles']['left_knee']:.1f}°, {last_frame['analysis_data']['angles']['left_knee']:.1f}°
+- Right knee angles: {first_frame['analysis_data']['angles']['right_knee']:.1f}°, {middle_frame['analysis_data']['angles']['right_knee']:.1f}°, {last_frame['analysis_data']['angles']['right_knee']:.1f}°
+
+KEY FRAME LANDMARK POSITIONS:
+Frame 1 (25% of video):
+- Left knee: ({first_frame['landmarks']['left_knee'].x:.3f}, {first_frame['landmarks']['left_knee'].y:.3f})
+- Left ankle: ({first_frame['landmarks']['left_ankle'].x:.3f}, {first_frame['landmarks']['left_ankle'].y:.3f})
+
+Frame 2 (50% of video):
+- Left knee: ({middle_frame['landmarks']['left_knee'].x:.3f}, {middle_frame['landmarks']['left_knee'].y:.3f})
+- Left ankle: ({middle_frame['landmarks']['left_ankle'].x:.3f}, {middle_frame['landmarks']['left_ankle'].y:.3f})
+
+Frame 3 (75% of video):
+- Left knee: ({last_frame['landmarks']['left_knee'].x:.3f}, {last_frame['landmarks']['left_knee'].y:.3f})
+- Left ankle: ({last_frame['landmarks']['left_ankle'].x:.3f}, {last_frame['landmarks']['left_ankle'].y:.3f})
+
+IMPORTANT VIDEO ANALYSIS NOTES:
+- For freestyle stroke: Analyze if leg positions change throughout the video - if knee/ankle Y coordinates increase significantly over time, this indicates legs are sinking during the stroke.
+- Look for consistency in technique throughout the video duration.
+- Assess if the swimmer maintains proper form or if technique degrades over time.
+
+Please provide in humanlike language in english in second person:
+1. Technical assessment of the stroke technique throughout the video
+2. Specific recommendations for improvement based on video analysis
+3. Training tips and specific drills for this specific stroke that would help the swimmer improve their technique
+4. Overall score (1-10) with explanation
+
+Focus on {stroke_type} stroke technique specifically and how it changes throughout the video.
+"""
+    
+    try:
+        response = client.chat.completions.create(
+            model="glm-4",
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=1000,
+            temperature=0.7
+        )
+        
+        return response.choices[0].message.content
+        
+    except Exception as e:
+        return f"Error generating AI analysis: {str(e)}"
+
+def analyze_image(file_path):
+    pose = mp.solutions.pose.Pose()
+    image = cv2.imread(file_path)
+    results = pose.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    if not results.pose_landmarks:
+        return "No person detected in the image"
+    nose = results.pose_landmarks.landmark[mp.solutions.pose.PoseLandmark.NOSE]
+    left_shoulder = results.pose_landmarks.landmark[mp.solutions.pose.PoseLandmark.LEFT_SHOULDER]
+    right_shoulder = results.pose_landmarks.landmark[mp.solutions.pose.PoseLandmark.RIGHT_SHOULDER]
+    left_hip = results.pose_landmarks.landmark[mp.solutions.pose.PoseLandmark.LEFT_HIP]
+    right_hip = results.pose_landmarks.landmark[mp.solutions.pose.PoseLandmark.RIGHT_HIP]
+    left_elbow = results.pose_landmarks.landmark[mp.solutions.pose.PoseLandmark.LEFT_ELBOW]
+    left_wrist = results.pose_landmarks.landmark[mp.solutions.pose.PoseLandmark.LEFT_WRIST]
+    right_wrist = results.pose_landmarks.landmark[mp.solutions.pose.PoseLandmark.RIGHT_WRIST]
+
+    h, w, _ = image.shape
+    shoulder_coords = [left_shoulder.x * w, left_shoulder.y * h]
+    elbow_coords = [left_elbow.x * w, left_elbow.y * h]
+    wrist_coords = [left_wrist.x * w, left_wrist.y * h]
+
+    elbow_angle = calculate_angle(shoulder_coords, elbow_coords, wrist_coords)
+
+    feedback = []
+    if nose.y > left_shoulder.y:
+        feedback.append("Posture is right.")
+    else:
+        feedback.append("Posture is not right.")
+
+    # Example: Check if all required landmarks are present and visible
+    required_landmarks = [left_shoulder, right_shoulder, left_hip, right_hip]
+    if any(lm.visibility < 0.5 for lm in required_landmarks):
+        feedback.append("Cannot assess body alignment: full body not visible in the image.")
+    else:
+        avg_shoulder_y = (left_shoulder.y + right_shoulder.y) / 2
+        avg_hip_y = (left_hip.y + right_hip.y) / 2
+        alignment_diff = abs(avg_shoulder_y - avg_hip_y)
+        if alignment_diff < 0.05:
+            feedback.append("Body alignment is good (body is straight).")
+        else:
+            feedback.append("Body alignment could be improved (body is not straight).")
+
+    feedback.append(f"Left elbow angle: {elbow_angle:.1f} degrees.")
+    if elbow_angle > 160:
+        feedback.append("Arm is well extended.")
+    elif elbow_angle < 100:
+        feedback.append("Arm is too bent.")
+    else:
+        feedback.append("Arm is moderately bent.")
+
+    left_shoulder_x = left_shoulder.x * w
+    left_wrist_x = left_wrist.x * w
+    right_shoulder_x = right_shoulder.x * w
+    right_wrist_x = right_wrist.x * w
+
+    # Hand entry check for left hand
+    left_hand_entry_diff = abs(left_shoulder_x - left_wrist_x)
+    # Hand entry check for right hand
+    right_hand_entry_diff = abs(right_shoulder_x - right_wrist_x)
+
+    # Threshold: how far from the shoulder is "acceptable" (tune as needed)
+    threshold = 40  # pixels
+
+    # Add hand entry feedback
+    if left_hand_entry_diff < threshold:
+        feedback.append("Left hand entry is good (in line with shoulder).")
+    else:
+        feedback.append("Left hand entry could be improved (not in line with shoulder).")
+
+    if right_hand_entry_diff < threshold:
+        feedback.append("Right hand entry is good (in line with shoulder).")
+    else:
+        feedback.append("Right hand entry could be improved (not in line with shoulder).")
+
+    return " ".join(feedback)
+
+def analyze_video(file_path):
+    """Analyze video by extracting frames and performing pose analysis"""
+    import cv2
+    
+    # Open the video file
+    cap = cv2.VideoCapture(file_path)
+    
+    if not cap.isOpened():
+        return "Error: Could not open video file"
+    
+    # Get video properties
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    duration = total_frames / fps if fps > 0 else 0
+    
+    # Extract frames at regular intervals (every 30 frames = ~1 second at 30fps)
+    frame_interval = 5
+    analyzed_frames = []
+    frame_count = 0
+    
+    while True:
+        ret, frame = cap.read()
+       # print(f"Frame {frame_count} read: {ret}")
+        if not ret:
+            break
+            
+                # Analyze every nth frame to avoid processing every single frame
+        if frame_count % frame_interval == 0:
+            print("condition is correct")
+            # Save frame temporarily with high quality
+            temp_frame_path = f"temp_frame_{frame_count}.jpg"
+            
+            # Ensure frame is in BGR format and save with high quality
+            if frame is not None and frame.size > 0:
+                # Convert to RGB for better compatibility
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                # Convert back to BGR for saving
+                frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+                
+                # Save with high quality JPEG compression
+                success = cv2.imwrite(temp_frame_path, frame_bgr, [cv2.IMWRITE_JPEG_QUALITY, 95])
+                print(f"Frame saved successfully: {success}")
+                
+                if success:
+                    # Analyze the frame
+                    frame_analysis = analyze_image_with_variables(temp_frame_path)
+                    
+                    if frame_analysis['error'] is None:
+                        analyzed_frames.append({
+                            'frame_number': frame_count,
+                            'time_seconds': frame_count / fps,
+                            'analysis': frame_analysis
+                        })
+                    else:
+                        print(f"Frame analysis error: {frame_analysis['error']}")
+                else:
+                    print(f"Failed to save frame {frame_count}")
+            
+            # Clean up temporary file
+           # import os
+           # if os.path.exists(temp_frame_path):
+           #     os.remove(temp_frame_path)
+        
+        frame_count += 1
+    
+    cap.release()
+    
+    if not analyzed_frames:
+        return "Error: No valid frames could be analyzed from the video"
+    
+    # Compile overall video analysis
+    return compile_video_analysis(analyzed_frames, duration, fps)
+
+def compile_video_analysis(analyzed_frames, duration, fps):
+    """Compile analysis from multiple frames into overall video assessment"""
+    
+    if not analyzed_frames:
+        return "No frames were successfully analyzed"
+    
+    # Calculate averages across all frames
+    total_elbow_angles = {'left': [], 'right': []}
+    total_knee_angles = {'left': [], 'right': []}
+    total_alignment_diffs = []
+    total_hand_entry_diffs = {'left': [], 'right': []}
+    posture_scores = []
+    
+    for frame_data in analyzed_frames:
+        analysis = frame_data['analysis']
+        analysis_data = analysis['analysis_data']
+        
+        # Collect elbow angles
+        total_elbow_angles['left'].append(analysis_data['angles']['left_elbow'])
+        total_elbow_angles['right'].append(analysis_data['angles']['right_elbow'])
+        
+        # Collect knee angles
+        total_knee_angles['left'].append(analysis_data['angles']['left_knee'])
+        total_knee_angles['right'].append(analysis_data['angles']['right_knee'])
+        
+        # Collect alignment differences
+        total_alignment_diffs.append(analysis_data['alignment_diff'])
+        
+        # Collect hand entry differences
+        total_hand_entry_diffs['left'].append(analysis_data['hand_entry_diffs']['left'])
+        total_hand_entry_diffs['right'].append(analysis_data['hand_entry_diffs']['right'])
+        
+        # Collect posture scores
+        posture_scores.append(1 if analysis_data['posture_good'] else 0)
+    
+    # Calculate averages
+    avg_analysis = {
+        'left_elbow_angle': sum(total_elbow_angles['left']) / len(total_elbow_angles['left']),
+        'right_elbow_angle': sum(total_elbow_angles['right']) / len(total_elbow_angles['right']),
+        'left_knee_angle': sum(total_knee_angles['left']) / len(total_knee_angles['left']),
+        'right_knee_angle': sum(total_knee_angles['right']) / len(total_knee_angles['right']),
+        'alignment_diff': sum(total_alignment_diffs) / len(total_alignment_diffs),
+        'left_hand_entry_diff': sum(total_hand_entry_diffs['left']) / len(total_hand_entry_diffs['left']),
+        'right_hand_entry_diff': sum(total_hand_entry_diffs['right']) / len(total_hand_entry_diffs['right']),
+        'posture_score': sum(posture_scores) / len(posture_scores),
+        'frames_analyzed': len(analyzed_frames),
+        'video_duration': duration
+    }
+    
+    # Generate video-specific feedback
+    feedback = []
+    feedback.append(f"Video Analysis Summary:")
+    feedback.append(f"- Duration: {duration:.1f} seconds")
+    feedback.append(f"- Frames analyzed: {len(analyzed_frames)}")
+    feedback.append(f"- Average left elbow angle: {avg_analysis['left_elbow_angle']:.1f}°")
+    feedback.append(f"- Average right elbow angle: {avg_analysis['right_elbow_angle']:.1f}°")
+    feedback.append(f"- Average left knee angle: {avg_analysis['left_knee_angle']:.1f}°")
+    feedback.append(f"- Average right knee angle: {avg_analysis['right_knee_angle']:.1f}°")
+    
+    # Posture consistency
+    if avg_analysis['posture_score'] > 0.8:
+        feedback.append("- Posture: Consistently good throughout the video")
+    elif avg_analysis['posture_score'] > 0.5:
+        feedback.append("- Posture: Generally good with some inconsistencies")
+    else:
+        feedback.append("- Posture: Needs improvement - inconsistent throughout the video")
+    
+    # Body alignment consistency
+    if avg_analysis['alignment_diff'] < 0.05:
+        feedback.append("- Body alignment: Consistently straight")
+    else:
+        feedback.append("- Body alignment: Could be improved - some misalignment detected")
+    
+    return " ".join(feedback)

@@ -1,0 +1,35 @@
+
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<style>
+    body {
+
+            background: url("{% static 'images/pool-water.jpg.jpg' %}") no-repeat center center fixed;
+            background-size: cover;
+        }
+
+</style>
+<div class="login-container">
+    <h2>Login</h2>
+
+    {% if messages %}
+        {% for message in messages %}
+            <p class="message">{{ message }}</p>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post" class="login-form">
+        {% csrf_token %}
+        <label>Username:</label>
+        <input type="text" name="username" required>
+        <br>
+        <label>Password:</label>
+        <input type="password" name="password" required>
+        <br>
+        <button type="submit">Login</button>
+    </form>
+</div>
+{% endblock %}

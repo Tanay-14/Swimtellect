@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Home{% endblock %}
+
+{% block content %}
+    <h1>Welcome to the site</h1>
+    <p>This is the landing page</p>
+
+<div class="carousel-container">
+    <!-- Carousel Images (Each one is wrapped in a .carousel-item) -->
+    <div class="carousel">
+        <div class="carousel-item">
+            <img src="{% static 'images/carousel1.jpg' %}" alt="Image 1">
+        </div>
+        <div class="carousel-item">
+            <img src="{% static 'images/carousel2.jfif' %}" alt="Image 2">
+        </div>
+        <div class="carousel-item">
+            <img src="{% static 'images/carousel3.jfif' %}" alt="Image 3">
+        </div>
+        <div class="carousel-item">
+            <img src="{% static 'images/carousel4.jfif' %}" alt="Image 4">
+        </div>
+    </div>
+
+    <!-- Radio buttons for navigation -->
+    <input type="radio" name="carousel" id="slide1" checked>
+    <input type="radio" name="carousel" id="slide2">
+    <input type="radio" name="carousel" id="slide3">
+    <input type="radio" name="carousel" id="slide4">
+
+    <!-- Carousel Navigation Buttons -->
+    <div class="carousel-nav">
+
+    <label for="slide4" class="prev">&#10094;</label>
+    <label for="slide2" class="next">&#10095;</label>
+
+    </div>
+</div>
+
+
+
+
+
+
+
+{% endblock %}
