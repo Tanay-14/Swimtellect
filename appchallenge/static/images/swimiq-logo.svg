@@ -1,0 +1,28 @@
+<svg width="200" height="80" viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+  <!-- Wave graphic -->
+  <path d="M20 50 Q40 30 60 50 Q80 70 100 50 Q120 30 140 50 Q160 70 180 50" 
+        stroke="#0077b6" 
+        stroke-width="3" 
+        fill="none" 
+        stroke-linecap="round"/>
+  
+  <!-- Wave curl at peak -->
+  <path d="M95 45 Q100 40 105 45" 
+        stroke="#0077b6" 
+        stroke-width="3" 
+        fill="none" 
+        stroke-linecap="round"/>
+  
+  <!-- SwimIQ text -->
+  <text x="100" y="70" 
+        font-family="Arial, sans-serif" 
+        font-size="18" 
+        font-weight="bold" 
+        text-anchor="middle" 
+        fill="#1e3a8a">
+    SwimIQ
+  </text>
+  
+  <!-- Dot above 'i' in Swim -->
+  <circle cx="115" cy="58" r="1.5" fill="#1e3a8a"/>
+</svg> 

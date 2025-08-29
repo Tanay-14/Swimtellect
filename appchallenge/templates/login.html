@@ -1,19 +1,32 @@
 
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Login{% endblock %}
+{% block title %}Login - SwimTellect{% endblock %}
 
 {% block content %}
 <style>
     body {
+        background: url("{% static 'images/pool-water.jpg.jpg' %}") no-repeat center center fixed;
+        background-size: cover;
+    }
 
-            background: url("{% static 'images/pool-water.jpg.jpg' %}") no-repeat center center fixed;
-            background-size: cover;
-        }
+    .logo-container {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .form-logo {
+        width: 250px;
+        height: auto;
+        margin-bottom: 10px;
+    }
 
 </style>
 <div class="login-container">
-    <h2>Login</h2>
+    <div class="logo-container">
+        <img src="{% static 'images/swimtellect-logo.png' %}" alt="SwimTellect Logo" class="form-logo">
+    </div>
+    <h2>Welcome Back to SwimTellect</h2>
 
     {% if messages %}
         {% for message in messages %}

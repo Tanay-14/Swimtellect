@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Upload Media{% endblock %}
+{% block title %}Upload Media - SwimTellect{% endblock %}
 {% load static %}
 {% block content %}
 <style>
@@ -16,6 +16,17 @@
         background-color: rgba(255, 255, 255, 0.85);
         border-radius: 12px;
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .logo-container {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .form-logo {
+        width: 250px;
+        height: auto;
+        margin-bottom: 10px;
     }
 
     .upload-form input[type="file"] {
@@ -133,7 +144,10 @@
 </style>
 
 <div class="upload-container">
-    <h2>Upload Media for Analysis</h2>
+    <div class="logo-container">
+        <img src="{% static 'images/swimtellect-logo.png' %}" alt="SwimTellect Logo" class="form-logo">
+    </div>
+    <h2>AI-Powered Technique Analysis</h2>
 
     {% if messages %}
         {% for message in messages %}
