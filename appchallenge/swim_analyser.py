@@ -185,7 +185,7 @@ def analyze_image_with_variables(file_path):
         'feedback': " ".join(feedback)
     }
 
-def generate_zhipu_analysis(image_path, stroke_type="freestyle"):
+def generate_zhipu_analysis(image_path, stroke_type="freestyle", swimming_level="beginner"):
     """Generate analysis using Zhipu AI with all the pose data"""
     
     # Get all analysis data
@@ -201,7 +201,7 @@ def generate_zhipu_analysis(image_path, stroke_type="freestyle"):
     
     # Create detailed prompt for Zhipu AI
     prompt = f"""
-As a professional swimming coach, analyze this swimming technique data for {stroke_type} stroke in english in second person:
+As a professional swimming coach, analyze this swimming technique data for {stroke_type} stroke in english in second person. The swimmer's skill level is: {swimming_level.upper()}.
 
 TECHNICAL DATA:
 - Left elbow angle: {analysis_data['angles']['left_elbow']:.1f} degrees
@@ -228,13 +228,20 @@ IMPORTANT ANALYSIS NOTES:
 - For freestyle stroke: If the knee and ankle Y coordinates are significantly higher (larger values) than the hip Y coordinates, this indicates your legs are sinking below your torso, which creates drag and slows you down.
 - In proper freestyle technique, your legs should be near the surface of the water, not dropping below your body line.
 
+SWIMMING LEVEL CONTEXT:
+- BEGINNER: Focus on basic technique, body position, and breathing. Keep feedback simple and encouraging.
+- INTERMEDIATE: Address more technical aspects, stroke efficiency, and power generation.
+- ADVANCED: Focus on fine-tuning technique, race-specific improvements, and advanced training concepts.
+- COMPETITIVE: Emphasize race performance, advanced technique optimization, and elite-level training.
+
 Please only these sections and provide in humanlike language in english in second person:
-1. Technical assessment of the stroke technique
-2. Specific recommendations for improvement
-3. Training tips and specific drills for this specific stroke that would help the swimmer improve their technique
-4. Overall score (1-10) with explanation
-... Only include the four requested sections exactly as listed. Do not add any other sections or headings.
-Focus on {stroke_type} stroke technique specifically.
+1. Technical assessment of the stroke technique (tailored to {swimming_level} level)
+2. Specific recommendations for improvement (appropriate for {swimming_level} level)
+3. Training tips and specific drills for {stroke_type} that would help the swimmer improve their technique (suitable for {swimming_level} level)
+4. Dry excersizes that would help the swimmer improve their technique (suitable for {swimming_level} level)
+
+... Only include the three requested sections exactly as listed. Do not add any other sections or headings.
+Focus on {stroke_type} stroke technique specifically and provide feedback appropriate for a {swimming_level} level swimmer.
 """
     
     try:
@@ -252,7 +259,7 @@ Focus on {stroke_type} stroke technique specifically.
     except Exception as e:
         return f"Error generating AI analysis: {str(e)}"
 
-def generate_video_zhipu_analysis(video_path, stroke_type="freestyle"):
+def generate_video_zhipu_analysis(video_path, stroke_type="freestyle", swimming_level="beginner"):
     """Generate AI analysis for video using frame-by-frame data"""
     
     # First, analyze the video to get frame data

@@ -4,6 +4,7 @@ from django.contrib import messages
 from .forms import RegisterForm, UploadForm
 from django.contrib.auth.decorators import login_required,user_passes_test
 from .swim_analyser import analyze_media, analyze_image_with_variables, generate_zhipu_analysis, generate_video_zhipu_analysis
+from .models import UserProfile
 
 def landing(request):
     return render(request, "landing.html")
@@ -26,12 +27,14 @@ def register(request):
     if request.method == "POST":
         form = RegisterForm(request.POST)
         if form.is_valid():
-
             user = form.save(commit=False)
             user.set_password(form.cleaned_data["password"])
             user.save()
-
-
+            
+            # Create UserProfile with swimming level
+            swimming_level = form.cleaned_data["swimming_level"]
+            UserProfile.objects.create(user=user, swimming_level=swimming_level)
+            
             login(request, user)
             return redirect("login")
     else:
@@ -54,11 +57,18 @@ def file_upload(request):
             # Get the stroke type from the form
             stroke_type = upload.stroke
             
-            # Generate AI-powered analysis based on file type
+            # Get the user's swimming level
+            try:
+                user_profile = UserProfile.objects.get(user=request.user)
+                swimming_level = user_profile.swimming_level
+            except UserProfile.DoesNotExist:
+                swimming_level = 'beginner'  # Default if profile doesn't exist
+            
+            # Generate AI-powered analysis based on file type and swimming level
             if upload.media.path.lower().endswith((".mp4", ".mov", ".avi")):
-                ai_analysis = generate_video_zhipu_analysis(upload.media.path, stroke_type)
+                ai_analysis = generate_video_zhipu_analysis(upload.media.path, stroke_type, swimming_level)
             else:
-                ai_analysis = generate_zhipu_analysis(upload.media.path, stroke_type)
+                ai_analysis = generate_zhipu_analysis(upload.media.path, stroke_type, swimming_level)
             
             # Prepare content for template
             content["ai_analysis"] = ai_analysis
