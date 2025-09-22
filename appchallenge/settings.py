@@ -79,8 +79,17 @@ WSGI_APPLICATION = 'appchallenge.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+       # 'ENGINE': 'django.db.backends.sqlite3',
+       # 'NAME': BASE_DIR / 'db.sqlite3'
+        'ENGINE': 'djongo',
+        'NAME': 'Swimtellect',
+        'ENFORCE_SCHEMA': False,
+        'CLIENT': {
+            'host': 'mongodb+srv://tanaybpk14_db_user:1Ziz9GmthhHr4tB5@swimtellect.w9msbax.mongodb.net/',
+            'username': 'tanaybpk14_db_user',
+            'password': '1Ziz9GmthhHr4tB5',
+       
+        }
     }
 }
 

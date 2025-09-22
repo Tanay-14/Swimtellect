@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}My Dashboard{% endblock %}
+{% block content %}
+<style>
+    .upload-history-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 30px;
+        margin-top: 40px;
+    }
+    .upload-card {
+        background: white;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .upload-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+    }
+    .upload-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    .upload-card-header h5 {
+        margin: 0;
+        color: #1e3a8a;
+    }
+    .upload-card-media {
+        text-align: center;
+        margin-top: 15px;
+    }
+    .analysis-summary {
+        margin-top: 15px;
+        font-size: 0.9rem;
+        color: #4a5568;
+    }
+    .upload-card a {
+        text-decoration: none;
+    }
+</style>
+<div class="hero-section" style="margin-bottom: 0; padding: 40px 20px;">
+    <div class="hero-content">
+        <h1>{{ user.username }}'s Dashboard</h1>
+        <p class="hero-subtitle">Review your upload history and track your progress.</p>
+    </div>
+</div>
+
+<div class="container" style="padding-top: 40px; padding-bottom: 40px;">
+    {% if uploads %}
+        <div class="upload-history-grid">
+            {% for upload in uploads %}
+                <a href="{% url 'upload_detail' upload.id %}" class="upload-card-link">
+                    <div class="upload-card">
+                        <div>
+                            <div class="upload-card-header">
+                                <h5>Stroke: <strong>{{ upload.get_stroke_display }}</strong></h5>
+                                <small class="text-muted">{{ upload.uploaded_at|date:"M d, Y" }}</small>
+                            </div>
+                            <p>File: <span style="color: #0077b6;">{{ upload.media.name|truncatechars:30 }}</span></p>
+                            <div class="upload-card-media">
+                                {% if 'image' in upload.media.file.content_type %}
+                                    <img src="{{ upload.media.url }}" alt="Uploaded image" class="img-thumbnail" style="max-height: 200px; width: auto;">
+                                {% elif 'video' in upload.media.file.content_type %}
+                                    <video controls class="img-thumbnail" style="max-width: 100%; max-height: 240px;">
+                                        <source src="{{ upload.media.url }}" type="{{ upload.media.file.content_type }}">
+                                        Your browser does not support the video tag.
+                                    </video>
+                                {% endif %}
+                            </div>
+                            {% if upload.analysis_summary %}
+                            <div class="analysis-summary">
+                                <p><strong>Analysis:</strong> {{ upload.analysis_summary|truncatewords:20 }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div style="margin-top: 20px; text-align: right;">
+                             <span class="cta-button primary" style="padding: 8px 16px; font-size: 0.9rem;">View Full Analysis</span>
+                        </div>
+                    </div>
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="feature-card" style="text-align: center;">
+            <h3>No Uploads Yet!</h3>
+            <p>You haven't uploaded any files for analysis. Get started by analyzing your first swim.</p>
+            <a href="{% url 'upload' %}" class="cta-button primary" style="margin-top: 20px; display: inline-block;">Upload a File</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

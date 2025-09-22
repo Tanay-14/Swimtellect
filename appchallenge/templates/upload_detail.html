@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Analysis for {{ upload.media.name|truncatechars:20 }}{% endblock %}
+
+{% block content %}
+<style>
+    .analysis-container {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 30px;
+        background-color: #ffffff;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        border: 1px solid #e2e8f0;
+    }
+    .media-display {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    .media-display img, .media-display video {
+        max-width: 100%;
+        max-height: 500px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .analysis-content {
+        white-space: pre-wrap; /* To respect newlines from the analysis */
+        line-height: 1.7;
+        color: #4a5568;
+    }
+    .analysis-header {
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 15px;
+        margin-bottom: 25px;
+    }
+    .analysis-header h1 {
+        color: #1e3a8a;
+    }
+</style>
+
+<div class="container" style="padding-top: 40px; padding-bottom: 40px;">
+    <div class="analysis-container">
+        <a href="{% url 'dashboard' %}" class="cta-button secondary" style="margin-bottom: 20px;">&larr; Back to Dashboard</a>
+        <div class="analysis-header">
+            <h1>Analysis for {{ upload.get_stroke_display }}</h1>
+            <p class="text-muted" style="color: #64748b;">Uploaded on {{ upload.uploaded_at|date:"F d, Y, P" }}</p>
+        </div>
+
+        <div class="media-display">
+            {% if 'image' in upload.media.file.content_type %}
+                <img src="{{ upload.media.url }}" alt="Uploaded image">
+            {% elif 'video' in upload.media.file.content_type %}
+                <video controls style="width: 100%;">
+                    <source src="{{ upload.media.url }}" type="{{ upload.media.file.content_type }}">
+                    Your browser does not support the video tag.
+                </video>
+            {% endif %}
+        </div>
+
+        <div class="analysis-content">
+            <h3>🤖 AI Coach Analysis</h3>
+            <p>
+                {{ upload.analysis_summary|linebreaksbr }}
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

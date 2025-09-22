@@ -5,21 +5,24 @@
 {% block content %}
 <div class="hero-section">
     <div class="hero-content">
-        
-        <h1>Welcome to SwimTellect</h1>
-        <p class="hero-subtitle">AI-Powered Swimming Technique Analysis</p>
-        <p class="hero-description">
-            Transform your swimming performance with advanced AI technology that analyzes your technique 
-            and provides personalized feedback to help you swim faster, more efficiently, and with better form.
-        </p>
-        {% if not user.is_authenticated %}
+        {% if user.is_authenticated %}
+            <h1>Welcome back {{ user.username }}, ready to start training?</h1>
+            <p class="hero-description">
+                Let's analyze your latest swim. Head over to the upload page to get started.
+            </p>
+            <div class="cta-buttons">
+                <a href="{% url 'upload' %}" class="cta-button primary">Analyze Your Technique</a>
+            </div>
+        {% else %}
+            <h1>Welcome to SwimTellect</h1>
+            <p class="hero-subtitle">AI-Powered Swimming Technique Analysis</p>
+            <p class="hero-description">
+                Transform your swimming performance with advanced AI technology that analyzes your technique 
+                and provides personalized feedback to help you swim faster, more efficiently, and with better form.
+            </p>
             <div class="cta-buttons">
                 <a href="{% url 'register' %}" class="cta-button primary">Get Started</a>
                 <a href="{% url 'login' %}" class="cta-button secondary">Sign In</a>
-            </div>
-        {% else %}
-            <div class="cta-buttons">
-                <a href="{% url 'upload' %}" class="cta-button primary">Analyze Your Technique</a>
             </div>
         {% endif %}
     </div>

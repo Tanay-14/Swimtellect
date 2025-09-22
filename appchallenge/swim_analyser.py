@@ -225,8 +225,25 @@ LANDMARK POSITIONS (normalized coordinates):
 - Right ankle: ({landmarks['right_ankle'].x:.3f}, {landmarks['right_ankle'].y:.3f})
 
 IMPORTANT ANALYSIS NOTES:
-- For freestyle stroke: If the knee and ankle Y coordinates are significantly higher (larger values) than the hip Y coordinates, this indicates your legs are sinking below your torso, which creates drag and slows you down.
-- In proper freestyle technique, your legs should be near the surface of the water, not dropping below your body line.
+If knee_y and ankle_y are greater than hip_y in freestyle, then legs are sinking below torso → drag increases. Proper technique: legs near surface.
+If nose_y is greater than shoulder_y in freestyle, then head is lifted → hips drop. Proper technique: head stays low and aligned with spine.
+If elbow_y < wrist_y during recovery in freestyle, then arm recovery is flat. Proper technique: elbow should recover higher than wrist.
+If wrist_x does not move inward toward shoulder_x during pull in freestyle, then catch is weak. Proper technique: hand should press slightly inward.
+
+If hip_y > shoulder_y in backstroke, then hips are dropping → breaking streamline. Proper technique: hips close to surface.
+If nose_y varies largely between frames in backstroke, then head is unstable. Proper technique: head stable, water at ear level.
+If wrist_x at entry is far outside or inside shoulder_x in backstroke, then arm entry is inefficient. Proper technique: hand enters above shoulder, pinky first.
+If knee_y > hip_y in backstroke, then knees break surface → drag. Proper technique: kick from hips, minimal knee bend.
+
+If ankle_x left and right are not mirrored in breaststroke, then kick is asymmetrical. Proper technique: both legs move symmetrically.
+If knee_y is close to hip_y or torso in breaststroke, then knees pulled too far forward → drag. Proper technique: knees bend moderately, stay behind hips.
+If elbow_y > wrist_y during recovery in breaststroke, then arms are lifting upward instead of forward. Proper technique: arms recover forward under surface.
+If distance between ankle_y and hip_y stays large after kick in breaststroke, then legs not fully extended. Proper technique: legs extend fully during glide.
+
+If chest_y and hip_y move simultaneously in butterfly, then undulation is flat. Proper technique: chest presses down first, hips follow in wave.
+If elbow_y < wrist_y during recovery in butterfly, then arms are dragging through water. Proper technique: elbows higher than wrists.
+If ankle_y does not reach lowest point during pull in butterfly, then kick timing is off. Proper technique: downkick should align with pull.
+If wrist_y left and right are not equal at entry in butterfly, then arms are entering unevenly. Proper technique: both arms enter together at shoulder width.
 
 SWIMMING LEVEL CONTEXT:
 - BEGINNER: Focus on basic technique, body position, and breathing. Keep feedback simple and encouraging.
@@ -240,7 +257,7 @@ Please only these sections and provide in humanlike language in english in secon
 3. Training tips and specific drills for {stroke_type} that would help the swimmer improve their technique (suitable for {swimming_level} level)
 4. Dry excersizes that would help the swimmer improve their technique (suitable for {swimming_level} level)
 
-... Only include the three requested sections exactly as listed. Do not add any other sections or headings.
+... Only include the four requested sections exactly as listed. Do not add any other sections or headings.
 Focus on {stroke_type} stroke technique specifically and provide feedback appropriate for a {swimming_level} level swimmer.
 """
     
@@ -339,7 +356,7 @@ def generate_video_zhipu_analysis(video_path, stroke_type="freestyle", swimming_
     
     # Create comprehensive prompt for video analysis
     prompt = f"""
-As a professional swimming coach, analyze this swimming video data for {stroke_type} stroke in english in second person:
+As a professional swimming coach, analyze this swimming video data for {stroke_type} stroke in english in second person. The swimmer's skill level is: {swimming_level.upper()}.:
 
 VIDEO INFORMATION:
 - Video duration: {duration:.1f} seconds
@@ -366,7 +383,25 @@ Frame 3 (75% of video):
 - Left ankle: ({last_frame['landmarks']['left_ankle'].x:.3f}, {last_frame['landmarks']['left_ankle'].y:.3f})
 
 IMPORTANT VIDEO ANALYSIS NOTES:
-- For freestyle stroke: Analyze if leg positions change throughout the video - if knee/ankle Y coordinates increase significantly over time, this indicates legs are sinking during the stroke.
+If knee_y and ankle_y are greater than hip_y in freestyle, then legs are sinking below torso → drag increases. Proper technique: legs near surface.
+If nose_y is greater than shoulder_y in freestyle, then head is lifted → hips drop. Proper technique: head stays low and aligned with spine.
+If elbow_y < wrist_y during recovery in freestyle, then arm recovery is flat. Proper technique: elbow should recover higher than wrist.
+If wrist_x does not move inward toward shoulder_x during pull in freestyle, then catch is weak. Proper technique: hand should press slightly inward.
+
+If hip_y > shoulder_y in backstroke, then hips are dropping → breaking streamline. Proper technique: hips close to surface.
+If nose_y varies largely between frames in backstroke, then head is unstable. Proper technique: head stable, water at ear level.
+If wrist_x at entry is far outside or inside shoulder_x in backstroke, then arm entry is inefficient. Proper technique: hand enters above shoulder, pinky first.
+If knee_y > hip_y in backstroke, then knees break surface → drag. Proper technique: kick from hips, minimal knee bend.
+
+If ankle_x left and right are not mirrored in breaststroke, then kick is asymmetrical. Proper technique: both legs move symmetrically.
+If knee_y is close to hip_y or torso in breaststroke, then knees pulled too far forward → drag. Proper technique: knees bend moderately, stay behind hips.
+If elbow_y > wrist_y during recovery in breaststroke, then arms are lifting upward instead of forward. Proper technique: arms recover forward under surface.
+If distance between ankle_y and hip_y stays large after kick in breaststroke, then legs not fully extended. Proper technique: legs extend fully during glide.
+
+If chest_y and hip_y move simultaneously in butterfly, then undulation is flat. Proper technique: chest presses down first, hips follow in wave.
+If elbow_y < wrist_y during recovery in butterfly, then arms are dragging through water. Proper technique: elbows higher than wrists.
+If ankle_y does not reach lowest point during pull in butterfly, then kick timing is off. Proper technique: downkick should align with pull.
+If wrist_y left and right are not equal at entry in butterfly, then arms are entering unevenly. Proper technique: both arms enter together at shoulder width.
 - Look for consistency in technique throughout the video duration.
 - Assess if the swimmer maintains proper form or if technique degrades over time.
 
@@ -374,9 +409,8 @@ Please provide in humanlike language in english in second person:
 1. Technical assessment of the stroke technique throughout the video
 2. Specific recommendations for improvement based on video analysis
 3. Training tips and specific drills for this specific stroke that would help the swimmer improve their technique
-4. Overall score (1-10) with explanation
-
-Focus on {stroke_type} stroke technique specifically and how it changes throughout the video.
+4. Dry excersizes that would help the swimmer improve their technique (suitable for {swimming_level} level)
+Focus on {stroke_type} stroke technique specifically and how it changes throughout the video and provide feedback appropriate for a {swimming_level} level swimmer.
 """
     
     try:
@@ -485,7 +519,7 @@ def analyze_video(file_path):
     duration = total_frames / fps if fps > 0 else 0
     
     # Extract frames at regular intervals (every 30 frames = ~1 second at 30fps)
-    frame_interval = 5
+    frame_interval = 15
     analyzed_frames = []
     frame_count = 0
     
@@ -528,9 +562,9 @@ def analyze_video(file_path):
                     print(f"Failed to save frame {frame_count}")
             
             # Clean up temporary file
-           # import os
-           # if os.path.exists(temp_frame_path):
-           #     os.remove(temp_frame_path)
+            import os
+            if os.path.exists(temp_frame_path):
+                os.remove(temp_frame_path)
         
         frame_count += 1
     
