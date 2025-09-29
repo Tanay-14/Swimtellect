@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Training{% endblock %}
+
+{% block content %}
+<style>
+    .training-container {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 30px;
+        background-color: #ffffff;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        border: 1px solid #e2e8f0;
+    }
+    .training-plan {
+        white-space: pre-wrap;
+        line-height: 1.7;
+        color: #4a5568;
+    }
+    .training-plan h3 {
+        color: #1e3a8a;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 10px;
+        margin-top: 20px;
+    }
+</style>
+
+<div class="hero-section" style="margin-bottom: 0; padding: 40px 20px;">
+    <div class="hero-content">
+        <h1>Personalized Training</h1>
+        <p class="hero-subtitle">Generate a custom training plan based on your performance history.</p>
+        <a href="{% url 'generate_plan' %}" class="cta-button primary" style="margin-top: 20px;">Generate New Training Plan</a>
+    </div>
+</div>
+
+<div class="training-container">
+    {% if training_plan %}
+        <div class="training-plan">
+            {{ training_plan|linebreaksbr }}
+        </div>
+    {% else %}
+        <p>Click the button above to generate your first personalized training plan!</p>
+    {% endif %}
+</div>
+{% endblock %}

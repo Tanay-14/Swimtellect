@@ -28,6 +28,8 @@ urlpatterns = [
     path('logout/', views.user_logout, name="logout"),
     path("upload/", views.file_upload, name="upload"),
     path("upload/<int:upload_id>/", views.upload_detail, name="upload_detail"),
+    path("training/", views.training, name="training"),
+    path("generate-plan/", views.generate_plan, name="generate_plan"),
     path("dashboard/", views.dashboard, name="dashboard"),
     path("", views.landing, name="landing"),
 

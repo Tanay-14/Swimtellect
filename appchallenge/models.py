@@ -29,3 +29,4 @@ class Upload(models.Model):
     stroke = models.CharField(max_length=20, choices=STROKE_CHOICES, default='freestyle')
     uploaded_at = models.DateTimeField(auto_now_add=True)
     analysis_summary = models.TextField(blank=True, null=True)
+    annotated_media_path = models.CharField(max_length=255, blank=True, null=True)

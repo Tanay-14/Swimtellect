@@ -46,6 +46,20 @@
     .upload-card a {
         text-decoration: none;
     }
+    .training-plan-summary {
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        border: 1px solid #e2e8f0;
+        margin-bottom: 40px;
+    }
+    .training-plan-summary h3 {
+        color: #1e3a8a;
+        margin-top: 0;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 10px;
+    }
 </style>
 <div class="hero-section" style="margin-bottom: 0; padding: 40px 20px;">
     <div class="hero-content">
@@ -55,6 +69,14 @@
 </div>
 
 <div class="container" style="padding-top: 40px; padding-bottom: 40px;">
+    {% if training_plan %}
+        <div class="training-plan-summary">
+            <h3>Your Current Training Plan</h3>
+            <p>{{ training_plan|truncatewords_html:50 }}</p>
+            <a href="{% url 'training' %}" class="cta-button secondary">View Full Plan</a>
+        </div>
+    {% endif %}
+
     {% if uploads %}
         <div class="upload-history-grid">
             {% for upload in uploads %}

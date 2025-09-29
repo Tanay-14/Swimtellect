@@ -30,13 +30,14 @@ def analyze_image_with_variables(file_path):
     """Analyze image and return all important variables and data"""
     
     # Initialize MediaPipe Pose
-    pose = mp.solutions.pose.Pose()
+    mp_pose = mp.solutions.pose
+    pose = mp_pose.Pose()
     image = cv2.imread(file_path)
     
     if image is None:
         return {
             'error': 'Could not load image',
-            'landmarks': None,
+            'annotated_image_path': None,
             'analysis_data': None,
             'feedback': 'Image could not be loaded'
         }
@@ -47,10 +48,24 @@ def analyze_image_with_variables(file_path):
     if not results.pose_landmarks:
         return {
             'error': 'No person detected',
-            'landmarks': None,
+            'annotated_image_path': None,
             'analysis_data': None,
             'feedback': 'No person detected in the image'
         }
+
+    # Draw landmarks on the image
+    annotated_image = image.copy()
+    mp.solutions.drawing_utils.draw_landmarks(
+        annotated_image,
+        results.pose_landmarks,
+        mp_pose.POSE_CONNECTIONS,
+        landmark_drawing_spec=mp.solutions.drawing_styles.get_default_pose_landmarks_style()
+    )
+
+    # Save the annotated image
+    path_parts = os.path.splitext(file_path)
+    annotated_image_path = f"{path_parts[0]}_annotated{path_parts[1]}"
+    cv2.imwrite(annotated_image_path, annotated_image)
     
     # Extract all important landmarks
     landmarks = results.pose_landmarks.landmark
@@ -180,6 +195,7 @@ def analyze_image_with_variables(file_path):
     return {
         'error': None,
         'landmarks': key_landmarks,
+        'annotated_image_path': annotated_image_path,
         'pixel_coords': pixel_coords,
         'analysis_data': analysis_data,
         'feedback': " ".join(feedback)
@@ -650,3 +666,64 @@ def compile_video_analysis(analyzed_frames, duration, fps):
         feedback.append("- Body alignment: Could be improved - some misalignment detected")
     
     return " ".join(feedback)
+
+def generate_training_plan(swimming_level, uploads):
+    """Generate a training plan using Zhipu AI based on user's level and upload history."""
+
+    if not uploads:
+        return "Not enough data to generate a training plan. Please upload some media for analysis first."
+
+    # Summarize past analyses, taking the 5 most recent ones
+    analysis_summaries = []
+    for upload in uploads[:5]:
+        if upload.analysis_summary:
+            # Truncate each summary to keep the prompt concise
+            summary_preview = (upload.analysis_summary[:250] + '...') if len(upload.analysis_summary) > 250 else upload.analysis_summary
+            analysis_summaries.append(
+                f"- For a {upload.get_stroke_display()} swim on {upload.uploaded_at.strftime('%Y-%m-%d')}, the analysis was: {summary_preview}"
+            )
+
+    if not analysis_summaries:
+        return "No analyses found in your upload history. Cannot generate a training plan."
+
+    history_summary = "\n".join(analysis_summaries)
+
+    prompt = f"""
+As a world-class swimming coach, create a personalized swimming training set for a swimmer with the following profile. The response should be in English and use the second person ("you").
+
+SWIMMER PROFILE:
+- Skill Level: {swimming_level.upper()}
+- Summary of Recent Analysis History:
+{history_summary}
+
+Based on this history, identify the swimmer's main weaknesses and strengths. Then, create a detailed one-week training plan to help them improve. The plan should be structured with clear daily workouts.
+
+Please provide the training plan in a human-like, encouraging tone. Use Markdown for formatting. Structure your response with the following sections:
+
+### Your Personalized 1-Week Training Plan
+**Primary Focus Areas:**
+*   [List 2-3 key areas for improvement based on the analysis, e.g., High Elbow Catch, Body Rotation]
+
+**Weekly Workout Schedule:**
+*   **Day 1: [Focus of the day, e.g., Technique & Form]**
+    *   **Warm-up:** [e.g., 200m easy swim, 4x50m drills]
+    *   **Main Set:** [e.g., 8x100m freestyle with focus on high elbow, 30s rest]
+    *   **Cool-down:** [e.g., 100m easy backstroke]
+*   **Day 2: [Focus of the day]**
+    *   ... (continue for a few more days, suggesting rest days as appropriate)
+
+Keep the advice practical and tailored to the swimmer's {swimming_level} level.
+"""
+
+    try:
+        response = client.chat.completions.create(
+            model="glm-4",
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=1500,
+            temperature=0.8
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"Error generating AI training plan: {str(e)}"
