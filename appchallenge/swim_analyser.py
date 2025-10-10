@@ -5,7 +5,7 @@ import numpy as np
 from dotenv import load_dotenv
 import zhipuai
 
-# Load environment variables for Zhipu AI
+# Loads the environmental variables for Zhipu AI so that later functions can use the model
 load_dotenv()
 client = zhipuai.ZhipuAI(api_key=os.getenv('BIGMODEL_API_KEY'))
 
@@ -29,7 +29,7 @@ def calculate_angle(a, b, c):
 def analyze_image_with_variables(file_path):
     """Analyze image and return all important variables and data"""
     
-    # Initialize MediaPipe Pose
+    # Initializes the MediaPipe Pose model to deteck landmarks in the user's image
     mp_pose = mp.solutions.pose
     pose = mp_pose.Pose()
     image = cv2.imread(file_path)
@@ -42,7 +42,6 @@ def analyze_image_with_variables(file_path):
             'feedback': 'Image could not be loaded'
         }
     
-    # Process image
     results = pose.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
     
     if not results.pose_landmarks:
@@ -53,7 +52,7 @@ def analyze_image_with_variables(file_path):
             'feedback': 'No person detected in the image'
         }
 
-    # Draw landmarks on the image
+    # This function draws the landmarks on the image and saves it
     annotated_image = image.copy()
     mp.solutions.drawing_utils.draw_landmarks(
         annotated_image,
@@ -62,16 +61,16 @@ def analyze_image_with_variables(file_path):
         landmark_drawing_spec=mp.solutions.drawing_styles.get_default_pose_landmarks_style()
     )
 
-    # Save the annotated image
+
     path_parts = os.path.splitext(file_path)
-    annotated_image_path = f"{path_parts[0]}_annotated{path_parts[1]}"
+    annotated_image_path = f"{path_parts[0]}_annotated.jpg"
     cv2.imwrite(annotated_image_path, annotated_image)
     
-    # Extract all important landmarks
+    # This part extracts the landmarks from the media pipe results
     landmarks = results.pose_landmarks.landmark
     h, w, _ = image.shape
     
-    # Key landmarks for swimming analysis
+    # Defines the key landmarks to be used in the analysis
     key_landmarks = {
         'nose': landmarks[mp.solutions.pose.PoseLandmark.NOSE],
         'left_shoulder': landmarks[mp.solutions.pose.PoseLandmark.LEFT_SHOULDER],
@@ -88,7 +87,7 @@ def analyze_image_with_variables(file_path):
         'right_knee': landmarks[mp.solutions.pose.PoseLandmark.RIGHT_KNEE]
     }
     
-    # Convert landmarks to pixel coordinates
+    # Converts the landmarks to pixel coordinates to be sent to Zhipu AI
     pixel_coords = {}
     for name, landmark in key_landmarks.items():
         pixel_coords[name] = {
@@ -98,48 +97,47 @@ def analyze_image_with_variables(file_path):
             'visibility': landmark.visibility
         }
     
-    # Calculate important angles
     angles = {}
     
-    # Left arm angle
+    # Defines the Left arm angle
     left_shoulder_coords = [pixel_coords['left_shoulder']['x'], pixel_coords['left_shoulder']['y']]
     left_elbow_coords = [pixel_coords['left_elbow']['x'], pixel_coords['left_elbow']['y']]
     left_wrist_coords = [pixel_coords['left_wrist']['x'], pixel_coords['left_wrist']['y']]
     angles['left_elbow'] = calculate_angle(left_shoulder_coords, left_elbow_coords, left_wrist_coords)
     
-    # Right arm angle
+    #Defines the Right arm angle
     right_shoulder_coords = [pixel_coords['right_shoulder']['x'], pixel_coords['right_shoulder']['y']]
     right_elbow_coords = [pixel_coords['right_elbow']['x'], pixel_coords['right_elbow']['y']]
     right_wrist_coords = [pixel_coords['right_wrist']['x'], pixel_coords['right_wrist']['y']]
     angles['right_elbow'] = calculate_angle(right_shoulder_coords, right_elbow_coords, right_wrist_coords)
     
-    # Left leg angle
+    #Defines Left leg angle
     left_hip_coords = [pixel_coords['left_hip']['x'], pixel_coords['left_hip']['y']]
     left_knee_coords = [pixel_coords['left_knee']['x'], pixel_coords['left_knee']['y']]
     left_ankle_coords = [pixel_coords['left_ankle']['x'], pixel_coords['left_ankle']['y']]
     angles['left_knee'] = calculate_angle(left_hip_coords, left_knee_coords, left_ankle_coords)
     
-    # Right leg angle
+    #Defines Right leg angle
     right_hip_coords = [pixel_coords['right_hip']['x'], pixel_coords['right_hip']['y']]
     right_knee_coords = [pixel_coords['right_knee']['x'], pixel_coords['right_knee']['y']]
     right_ankle_coords = [pixel_coords['right_ankle']['x'], pixel_coords['right_ankle']['y']]
     angles['right_knee'] = calculate_angle(right_hip_coords, right_knee_coords, right_ankle_coords)
     
-    # Body alignment analysis
+    # Calculates Body alignment analysis
     avg_shoulder_y = (key_landmarks['left_shoulder'].y + key_landmarks['right_shoulder'].y) / 2
     avg_hip_y = (key_landmarks['left_hip'].y + key_landmarks['right_hip'].y) / 2
     alignment_diff = abs(avg_shoulder_y - avg_hip_y)
     
-    # Hand entry analysis
+    #Calculates Hand entry analysis
     left_hand_entry_diff = abs(pixel_coords['left_shoulder']['x'] - pixel_coords['left_wrist']['x'])
     right_hand_entry_diff = abs(pixel_coords['right_shoulder']['x'] - pixel_coords['right_wrist']['x'])
     
-    # Posture analysis
+    #Calculates Posture analysis
     nose_y = key_landmarks['nose'].y
     left_shoulder_y = key_landmarks['left_shoulder'].y
     posture_good = nose_y > left_shoulder_y
     
-    # Compile analysis data
+    # Compiles the analysis data
     analysis_data = {
         'image_dimensions': {'width': w, 'height': h},
         'angles': angles,
@@ -152,10 +150,8 @@ def analyze_image_with_variables(file_path):
         'landmark_visibility': {name: coords['visibility'] for name, coords in pixel_coords.items()}
     }
     
-    # Generate feedback
     feedback = []
     
-    # Posture feedback
     if posture_good:
         feedback.append("Posture is right.")
     else:
@@ -204,18 +200,18 @@ def analyze_image_with_variables(file_path):
 def generate_zhipu_analysis(image_path, stroke_type="freestyle", swimming_level="beginner"):
     """Generate analysis using Zhipu AI with all the pose data"""
     
-    # Get all analysis data
+    # Gain all analysis data
     analysis_result = analyze_image_with_variables(image_path)
     
     if analysis_result['error']:
         return analysis_result['feedback']
     
-    # Prepare data for Zhipu AI
+    # This prepares the data for Zhipu AI
     analysis_data = analysis_result['analysis_data']
     landmarks = analysis_result['landmarks']
     pixel_coords = analysis_result['pixel_coords']
     
-    # Create detailed prompt for Zhipu AI
+    # Prompt for Zhipu AI
     prompt = f"""
 As a professional swimming coach, analyze this swimming technique data for {stroke_type} stroke in english in second person. The swimmer's skill level is: {swimming_level.upper()}.
 
@@ -295,27 +291,26 @@ Focus on {stroke_type} stroke technique specifically and provide feedback approp
 def generate_video_zhipu_analysis(video_path, stroke_type="freestyle", swimming_level="beginner"):
     """Generate AI analysis for video using frame-by-frame data"""
     
-    # First, analyze the video to get frame data
     video_analysis_result = analyze_video(video_path)
     
     if "Error" in video_analysis_result:
         return video_analysis_result
     
-    # For AI analysis, we'll analyze a few key frames
+    # Extracting important frames for analysis which is why the it takes longer to analyze a video
     import cv2
     cap = cv2.VideoCapture(video_path)
     
     if not cap.isOpened():
         return "Error: Could not open video file for AI analysis"
     
-    # Get video properties
+    # Get the video properties using computer vision
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     print(f"total_frames: {total_frames}")
     fps = cap.get(cv2.CAP_PROP_FPS)
     duration = total_frames / fps if fps > 0 else 0
     print(f"duration: {duration}")
     
-    # Analyze 3-5 key frames for AI analysis
+    # Analyze about 3-5 key frames for AI analysis depending on the length of the video
     key_frames = []
     frame_positions = [0.25, 0.5, 0.75]  # Analyze at 25%, 50%, and 75% of video
     
@@ -326,22 +321,19 @@ def generate_video_zhipu_analysis(video_path, stroke_type="freestyle", swimming_
         print(f"Frame {frame_number} read: {ret}")
         
         if ret:
-            # Save frame temporarily with high quality
+            # Save the frame temporarily with high quality 
             temp_frame_path = f"ai_frame_{position}.jpg"
             
-            # Ensure frame is in BGR format and save with high quality
+            # Ensure frame is in BGR format because OpenCV only works with BGR: Issue that I faced
             if frame is not None and frame.size > 0:
-                # Convert to RGB for better compatibility
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                # Convert back to BGR for saving
                 frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
                 
-                # Save with high quality JPEG compression
+                # Save it with high quality compression
                 success = cv2.imwrite(temp_frame_path, frame_bgr, [cv2.IMWRITE_JPEG_QUALITY, 95])
                 print(f"AI frame saved successfully: {success}")
                 
                 if success:
-                    # Analyze the frame
                     frame_analysis = analyze_image_with_variables(temp_frame_path)
                     
                     if frame_analysis['error'] is None:
@@ -355,7 +347,7 @@ def generate_video_zhipu_analysis(video_path, stroke_type="freestyle", swimming_
                 else:
                     print(f"Failed to save AI frame at position {position}")
             
-            # Clean up
+            # Clean all the frames so it doesn't take up space
             import os
             if os.path.exists(temp_frame_path):
                 os.remove(temp_frame_path)
@@ -365,12 +357,12 @@ def generate_video_zhipu_analysis(video_path, stroke_type="freestyle", swimming_
     if not key_frames:
         return "Error: No valid frames could be analyzed for AI assessment"
     
-    # Prepare data for AI analysis
+    # Prepare its data for AI analysis
     first_frame = key_frames[0]['analysis']
     middle_frame = key_frames[len(key_frames)//2]['analysis']
     last_frame = key_frames[-1]['analysis']
     
-    # Create comprehensive prompt for video analysis
+    #Prompt for Zhipu AI
     prompt = f"""
 As a professional swimming coach, analyze this swimming video data for {stroke_type} stroke in english in second person. The swimmer's skill level is: {swimming_level.upper()}.:
 
@@ -472,7 +464,6 @@ def analyze_image(file_path):
     else:
         feedback.append("Posture is not right.")
 
-    # Example: Check if all required landmarks are present and visible
     required_landmarks = [left_shoulder, right_shoulder, left_hip, right_hip]
     if any(lm.visibility < 0.5 for lm in required_landmarks):
         feedback.append("Cannot assess body alignment: full body not visible in the image.")
@@ -498,15 +489,12 @@ def analyze_image(file_path):
     right_shoulder_x = right_shoulder.x * w
     right_wrist_x = right_wrist.x * w
 
-    # Hand entry check for left hand
     left_hand_entry_diff = abs(left_shoulder_x - left_wrist_x)
-    # Hand entry check for right hand
     right_hand_entry_diff = abs(right_shoulder_x - right_wrist_x)
 
-    # Threshold: how far from the shoulder is "acceptable" (tune as needed)
-    threshold = 40  # pixels
+    # Threshold
+    threshold = 40 
 
-    # Add hand entry feedback
     if left_hand_entry_diff < threshold:
         feedback.append("Left hand entry is good (in line with shoulder).")
     else:
@@ -523,42 +511,38 @@ def analyze_video(file_path):
     """Analyze video by extracting frames and performing pose analysis"""
     import cv2
     
-    # Open the video file
+    
     cap = cv2.VideoCapture(file_path)
     
     if not cap.isOpened():
         return "Error: Could not open video file"
     
-    # Get video properties
+    # Get the properties of the video 
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     fps = cap.get(cv2.CAP_PROP_FPS)
     duration = total_frames / fps if fps > 0 else 0
     
-    # Extract frames at regular intervals (every 30 frames = ~1 second at 30fps)
+    # Extract frames at regular intervals; the interval can be increased for greater accuracy but takes longer
     frame_interval = 15
     analyzed_frames = []
     frame_count = 0
     
     while True:
         ret, frame = cap.read()
-       # print(f"Frame {frame_count} read: {ret}")
+       
         if not ret:
             break
             
-                # Analyze every nth frame to avoid processing every single frame
+                
         if frame_count % frame_interval == 0:
             print("condition is correct")
-            # Save frame temporarily with high quality
+            # Saves frame temporarily with high quality
             temp_frame_path = f"temp_frame_{frame_count}.jpg"
             
-            # Ensure frame is in BGR format and save with high quality
             if frame is not None and frame.size > 0:
-                # Convert to RGB for better compatibility
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                # Convert back to BGR for saving
                 frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
                 
-                # Save with high quality JPEG compression
                 success = cv2.imwrite(temp_frame_path, frame_bgr, [cv2.IMWRITE_JPEG_QUALITY, 95])
                 print(f"Frame saved successfully: {success}")
                 
@@ -577,7 +561,7 @@ def analyze_video(file_path):
                 else:
                     print(f"Failed to save frame {frame_count}")
             
-            # Clean up temporary file
+            # Clean up all the frames so it doesn't take up space
             import os
             if os.path.exists(temp_frame_path):
                 os.remove(temp_frame_path)
@@ -589,7 +573,7 @@ def analyze_video(file_path):
     if not analyzed_frames:
         return "Error: No valid frames could be analyzed from the video"
     
-    # Compile overall video analysis
+    # create the overall video analysis
     return compile_video_analysis(analyzed_frames, duration, fps)
 
 def compile_video_analysis(analyzed_frames, duration, fps):
@@ -641,7 +625,7 @@ def compile_video_analysis(analyzed_frames, duration, fps):
         'video_duration': duration
     }
     
-    # Generate video-specific feedback
+    
     feedback = []
     feedback.append(f"Video Analysis Summary:")
     feedback.append(f"- Duration: {duration:.1f} seconds")
@@ -651,7 +635,6 @@ def compile_video_analysis(analyzed_frames, duration, fps):
     feedback.append(f"- Average left knee angle: {avg_analysis['left_knee_angle']:.1f}°")
     feedback.append(f"- Average right knee angle: {avg_analysis['right_knee_angle']:.1f}°")
     
-    # Posture consistency
     if avg_analysis['posture_score'] > 0.8:
         feedback.append("- Posture: Consistently good throughout the video")
     elif avg_analysis['posture_score'] > 0.5:
@@ -659,25 +642,22 @@ def compile_video_analysis(analyzed_frames, duration, fps):
     else:
         feedback.append("- Posture: Needs improvement - inconsistent throughout the video")
     
-    # Body alignment consistency
     if avg_analysis['alignment_diff'] < 0.05:
         feedback.append("- Body alignment: Consistently straight")
     else:
         feedback.append("- Body alignment: Could be improved - some misalignment detected")
     
     return " ".join(feedback)
-
+#This function generates a personalized training plan based on your past uploads
 def generate_training_plan(swimming_level, uploads):
     """Generate a training plan using Zhipu AI based on user's level and upload history."""
 
     if not uploads:
         return "Not enough data to generate a training plan. Please upload some media for analysis first."
 
-    # Summarize past analyses, taking the 5 most recent ones
     analysis_summaries = []
     for upload in uploads[:5]:
         if upload.analysis_summary:
-            # Truncate each summary to keep the prompt concise
             summary_preview = (upload.analysis_summary[:250] + '...') if len(upload.analysis_summary) > 250 else upload.analysis_summary
             analysis_summaries.append(
                 f"- For a {upload.get_stroke_display()} swim on {upload.uploaded_at.strftime('%Y-%m-%d')}, the analysis was: {summary_preview}"
@@ -700,17 +680,17 @@ Based on this history, identify the swimmer's main weaknesses and strengths. The
 
 Please provide the training plan in a human-like, encouraging tone. Use Markdown for formatting. Structure your response with the following sections:
 
-### Your Personalized 1-Week Training Plan
-**Primary Focus Areas:**
-*   [List 2-3 key areas for improvement based on the analysis, e.g., High Elbow Catch, Body Rotation]
+ Your Personalized 1-Week Training Plan
+  Primary Focus Areas:
+    [List 2-3 key areas for improvement based on the analysis, e.g., High Elbow Catch, Body Rotation]
 
-**Weekly Workout Schedule:**
-*   **Day 1: [Focus of the day, e.g., Technique & Form]**
-    *   **Warm-up:** [e.g., 200m easy swim, 4x50m drills]
-    *   **Main Set:** [e.g., 8x100m freestyle with focus on high elbow, 30s rest]
-    *   **Cool-down:** [e.g., 100m easy backstroke]
-*   **Day 2: [Focus of the day]**
-    *   ... (continue for a few more days, suggesting rest days as appropriate)
+  Weekly Workout Schedule:  
+      Day 1: [Focus of the day, e.g., Technique & Form]
+          Warm-up:   [e.g., 200m easy swim, 4x50m drills]
+          Main Set:   [e.g., 8x100m freestyle with focus on high elbow, 30s rest]
+          Cool-down:   [e.g., 100m easy backstroke]
+      Day 2: [Focus of the day]**
+        ... (continue for a few more days, suggesting rest days as appropriate)
 
 Keep the advice practical and tailored to the swimmer's {swimming_level} level.
 """

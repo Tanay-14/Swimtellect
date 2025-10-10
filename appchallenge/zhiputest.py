@@ -7,7 +7,6 @@ import mediapipe as mp
 import numpy as np
 import zhipuai
 
-# Load environment variables
 client = zhipuai.ZhipuAI(api_key=os.getenv('BIGMODEL_API_KEY'))
 
 def calculate_angle(a, b, c):
@@ -24,7 +23,6 @@ def calculate_angle(a, b, c):
 def analyze_image_with_variables(file_path):
     """Analyze image and return all important variables and data"""
     
-    # Initialize MediaPipe Pose
     pose = mp.solutions.pose.Pose()
     image = cv2.imread(file_path)
     
@@ -36,7 +34,6 @@ def analyze_image_with_variables(file_path):
             'feedback': 'Image could not be loaded'
         }
     
-    # Process image
     results = pose.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
     
     if not results.pose_landmarks:
@@ -47,11 +44,9 @@ def analyze_image_with_variables(file_path):
             'feedback': 'No person detected in the image'
         }
     
-    # Extract all important landmarks
     landmarks = results.pose_landmarks.landmark
     h, w, _ = image.shape
     
-    # Key landmarks for swimming analysis
     key_landmarks = {
         'nose': landmarks[mp.solutions.pose.PoseLandmark.NOSE],
         'left_shoulder': landmarks[mp.solutions.pose.PoseLandmark.LEFT_SHOULDER],
@@ -68,7 +63,6 @@ def analyze_image_with_variables(file_path):
         'right_knee': landmarks[mp.solutions.pose.PoseLandmark.RIGHT_KNEE]
     }
     
-    # Convert landmarks to pixel coordinates
     pixel_coords = {}
     for name, landmark in key_landmarks.items():
         pixel_coords[name] = {
@@ -78,36 +72,29 @@ def analyze_image_with_variables(file_path):
             'visibility': landmark.visibility
         }
     
-    # Calculate important angles
     angles = {}
     
-    # Left arm angle
     left_shoulder_coords = [pixel_coords['left_shoulder']['x'], pixel_coords['left_shoulder']['y']]
     left_elbow_coords = [pixel_coords['left_elbow']['x'], pixel_coords['left_elbow']['y']]
     left_wrist_coords = [pixel_coords['left_wrist']['x'], pixel_coords['left_wrist']['y']]
     angles['left_elbow'] = calculate_angle(left_shoulder_coords, left_elbow_coords, left_wrist_coords)
     
-    # Right arm angle
     right_shoulder_coords = [pixel_coords['right_shoulder']['x'], pixel_coords['right_shoulder']['y']]
     right_elbow_coords = [pixel_coords['right_elbow']['x'], pixel_coords['right_elbow']['y']]
     right_wrist_coords = [pixel_coords['right_wrist']['x'], pixel_coords['right_wrist']['y']]
     angles['right_elbow'] = calculate_angle(right_shoulder_coords, right_elbow_coords, right_wrist_coords)
     
-    # Body alignment analysis
     avg_shoulder_y = (key_landmarks['left_shoulder'].y + key_landmarks['right_shoulder'].y) / 2
     avg_hip_y = (key_landmarks['left_hip'].y + key_landmarks['right_hip'].y) / 2
     alignment_diff = abs(avg_shoulder_y - avg_hip_y)
     
-    # Hand entry analysis
     left_hand_entry_diff = abs(pixel_coords['left_shoulder']['x'] - pixel_coords['left_wrist']['x'])
     right_hand_entry_diff = abs(pixel_coords['right_shoulder']['x'] - pixel_coords['right_wrist']['x'])
     
-    # Posture analysis
     nose_y = key_landmarks['nose'].y
     left_shoulder_y = key_landmarks['left_shoulder'].y
     posture_good = nose_y > left_shoulder_y
     
-    # Compile analysis data
     analysis_data = {
         'image_dimensions': {'width': w, 'height': h},
         'angles': angles,
@@ -120,16 +107,13 @@ def analyze_image_with_variables(file_path):
         'landmark_visibility': {name: coords['visibility'] for name, coords in pixel_coords.items()}
     }
     
-    # Generate feedback
     feedback = []
     
-    # Posture feedback
     if posture_good:
         feedback.append("Posture is right.")
     else:
         feedback.append("Posture is not right.")
     
-    # Body alignment feedback
     required_landmarks = [key_landmarks['left_shoulder'], key_landmarks['right_shoulder'], 
                          key_landmarks['left_hip'], key_landmarks['right_hip']]
     if any(lm.visibility < 0.5 for lm in required_landmarks):
@@ -140,7 +124,6 @@ def analyze_image_with_variables(file_path):
         else:
             feedback.append("Body alignment could be improved (body is not straight).")
     
-    # Arm angle feedback
     for side in ['left', 'right']:
         angle = angles[f'{side}_elbow']
         feedback.append(f"{side.capitalize()} elbow angle: {angle:.1f} degrees.")
@@ -151,7 +134,6 @@ def analyze_image_with_variables(file_path):
         else:
             feedback.append(f"{side.capitalize()} arm is moderately bent.")
     
-    # Hand entry feedback
     threshold = 40  # pixels
     for side in ['left', 'right']:
         diff = analysis_data['hand_entry_diffs'][side]
@@ -171,18 +153,15 @@ def analyze_image_with_variables(file_path):
 def generate_zhipu_analysis(image_path, stroke_type="freestyle"):
     """Generate analysis using Zhipu AI with all the pose data"""
     
-    # Get all analysis data
     analysis_result = analyze_image_with_variables(image_path)
     
     if analysis_result['error']:
         return analysis_result['feedback']
     
-    # Prepare data for Zhipu AI
     analysis_data = analysis_result['analysis_data']
     landmarks = analysis_result['landmarks']
     pixel_coords = analysis_result['pixel_coords']
     
-    # Create detailed prompt for Zhipu AI
     prompt = f"""
 As a professional swimming coach, analyze this swimming technique data for {stroke_type} stroke:
 
@@ -225,9 +204,8 @@ Focus on {stroke_type} stroke technique specifically.
     except Exception as e:
         return f"Error generating AI analysis: {str(e)}"
 
-# Example usage
+
 if __name__ == "__main__":
-    # Test with a sample image
     test_image_path = "uploads/testimage.jpg"  # Update with your image path
     
     if os.path.exists(test_image_path):
