@@ -264,6 +264,14 @@ SWIMMING LEVEL CONTEXT:
 - COMPETITIVE: Emphasize race performance, advanced technique optimization, and elite-level training.
 
 Please only these sections and provide in humanlike language in english in second person:
+
+First, provide a JSON object with scores from 1 to 10 and be generous in giving those scores for the following categories based on the data. The JSON object should be enclosed in triple backticks.
+```json
+{{
+  "scores": {{ "Coordination": <score>, "Breathing technique": <score>, "Body alignment": <score>, "Arm stroke efficiency": <score>, "Kick technique": <score> }}
+}}
+```
+
 1. Technical assessment of the stroke technique (tailored to {swimming_level} level)
 2. Specific recommendations for improvement (appropriate for {swimming_level} level)
 3. Training tips and specific drills for {stroke_type} that would help the swimmer improve their technique (suitable for {swimming_level} level)
@@ -414,6 +422,14 @@ If wrist_y left and right are not equal at entry in butterfly, then arms are ent
 - Assess if the swimmer maintains proper form or if technique degrades over time.
 
 Please provide in humanlike language in english in second person:
+
+First, provide a JSON object with scores from 1 to 10 for the following categories based on the data. The JSON object should be enclosed in triple backticks.
+```json
+{{
+  "scores": {{ "Coordination": <score>, "Breathing technique": <score>, "Body alignment": <score>, "Arm stroke efficiency": <score>, "Kick technique": <score> }}
+}}
+```
+
 1. Technical assessment of the stroke technique throughout the video
 2. Specific recommendations for improvement based on video analysis
 3. Training tips and specific drills for this specific stroke that would help the swimmer improve their technique

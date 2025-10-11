@@ -1,4 +1,6 @@
 import os
+import json
+import re
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
@@ -49,6 +51,21 @@ def user_logout(request):
     logout(request)
     return redirect("login")
 
+def _update_user_scores(user_profile, new_scores):
+    """
+    Updates the user's scores in their profile.
+    """
+    score_mapping = {
+        "Coordination": "coordination_score",
+        "Breathing technique": "breathing_technique_score",
+        "Body alignment": "body_alignment_score",
+        "Arm stroke efficiency": "arm_stroke_efficiency_score",
+        "Kick technique": "kick_technique_score",
+    }
+    for score_name, score_value in new_scores.items():
+        if model_field_name := score_mapping.get(score_name):
+            setattr(user_profile, model_field_name, score_value)
+    user_profile.save()
 @login_required
 def file_upload(request):
     content = {}
@@ -78,6 +95,22 @@ def file_upload(request):
                 analysis_result = analyze_image_with_variables(upload.media.path)
                 if analysis_result.get('annotated_image_path'):
                     upload.annotated_media_path = os.path.relpath(analysis_result['annotated_image_path'], 'media')
+
+            # Extract scores from AI analysis and update user profile
+            try:
+                
+                score_match = re.search(r"```json\s*(\{.*?\})\s*```", ai_analysis, re.DOTALL)
+                if score_match:
+                    scores_json = json.loads(score_match.group(1))
+                    new_scores = scores_json.get("scores")
+                    if new_scores:
+                        _update_user_scores(user_profile, new_scores)
+                        
+                        ai_analysis = ai_analysis.replace(score_match.group(0), "").strip()
+
+            except (json.JSONDecodeError, AttributeError) as e:
+                print(f"Could not parse scores from AI response: {e}")
+
 
             upload.analysis_summary = ai_analysis
             upload.save(update_fields=['analysis_summary', 'annotated_media_path']) # Update analysis and annotated image path
@@ -113,7 +146,29 @@ def upload_detail(request, upload_id):
 @login_required
 def training(request):
     training_plan = request.session.get('training_plan', None)
-    context = {'training_plan': training_plan}
+    user_profile = get_object_or_404(UserProfile, user=request.user)
+
+    score_labels = [
+        "Coordination", "Breathing technique", "Body alignment",
+        "Arm stroke efficiency", "Kick technique"
+    ]
+    score_values = [
+        user_profile.coordination_score,
+        user_profile.breathing_technique_score,
+        user_profile.body_alignment_score,
+        user_profile.arm_stroke_efficiency_score,
+        user_profile.kick_technique_score,
+    ]
+
+    scores_with_labels = sorted(zip(score_labels, score_values), key=lambda item: item[1])
+    areas_for_improvement = scores_with_labels[:2]
+
+    context = {
+        'training_plan': training_plan,
+        'score_labels': json.dumps(score_labels),
+        'score_values': json.dumps(score_values),
+        'areas_for_improvement': areas_for_improvement,
+    }
     return render(request, "training.html", context)
 
 @login_required

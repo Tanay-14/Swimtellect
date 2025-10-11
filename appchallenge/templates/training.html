@@ -14,6 +14,15 @@
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
         border: 1px solid #e2e8f0;
     }
+    .chart-container {
+        max-width: 500px;
+        margin: 30px auto;
+    }
+    .chart-title {
+        text-align: center;
+        color: #1e3a8a;
+        margin-bottom: 20px;
+    }
     .training-plan {
         white-space: pre-wrap;
         line-height: 1.7;
@@ -36,6 +45,11 @@
 </div>
 
 <div class="training-container">
+    <h3 class="chart-title">Your Overall Skill Assessment</h3>
+    <div class="chart-container"><canvas id="skillRadarChart"></canvas></div>
+</div>
+
+<div class="training-container">
     {% if training_plan %}
         <div class="training-plan">
             {{ training_plan|linebreaksbr }}
@@ -44,4 +58,43 @@
         <p>Click the button above to generate your first personalized training plan!</p>
     {% endif %}
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const ctx = document.getElementById('skillRadarChart').getContext('2d');
+        const scoreLabels = {{ score_labels|safe }};
+        const scoreValues = {{ score_values|safe }};
+
+        new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: scoreLabels,
+                datasets: [{
+                    label: 'Your Scores',
+                    data: scoreValues,
+                    backgroundColor: 'rgba(0, 119, 182, 0.2)',
+                    borderColor: 'rgba(0, 119, 182, 1)',
+                    borderWidth: 2,
+                    pointBackgroundColor: 'rgba(0, 119, 182, 1)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgba(0, 119, 182, 1)'
+                }]
+            },
+            options: {
+                scales: {
+                    r: {
+                        angleLines: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        },
+                        suggestedMin: 0,
+                        suggestedMax: 10,
+                        pointLabels: { font: { size: 14 } }
+                    }
+                }
+            }
+        });
+    });
+</script>
 {% endblock %}

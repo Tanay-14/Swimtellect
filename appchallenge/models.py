@@ -11,6 +11,12 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
 
     swimming_level = models.CharField(max_length=20, choices=SWIMMING_LEVEL_CHOICES, default='beginner')
+
+    coordination_score = models.FloatField(default=0.0)
+    breathing_technique_score = models.FloatField(default=0.0)
+    body_alignment_score = models.FloatField(default=0.0)
+    arm_stroke_efficiency_score = models.FloatField(default=0.0)
+    kick_technique_score = models.FloatField(default=0.0)
     
     def __str__(self):
         return f"{self.user.username} - {self.get_swimming_level_display()}"
