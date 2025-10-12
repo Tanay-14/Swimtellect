@@ -8,7 +8,8 @@ from .forms import RegisterForm, UploadForm
 from django.contrib.auth.decorators import login_required,user_passes_test
 from .swim_analyser import analyze_media, analyze_image_with_variables, generate_zhipu_analysis, generate_video_zhipu_analysis, generate_training_plan
 from .models import UserProfile
-from .models import Upload
+from .models import Upload, UserProfile
+from .youtube import get_youtube_videos
 
 
 def landing(request):
@@ -104,16 +105,17 @@ def file_upload(request):
                     scores_json = json.loads(score_match.group(1))
                     new_scores = scores_json.get("scores")
                     if new_scores:
+                        upload.scores = new_scores  # Save scores to the Upload model
                         _update_user_scores(user_profile, new_scores)
                         
                         ai_analysis = ai_analysis.replace(score_match.group(0), "").strip()
 
             except (json.JSONDecodeError, AttributeError) as e:
                 print(f"Could not parse scores from AI response: {e}")
-
+            
 
             upload.analysis_summary = ai_analysis
-            upload.save(update_fields=['analysis_summary', 'annotated_media_path']) # Update analysis and annotated image path
+            upload.save(update_fields=['analysis_summary', 'annotated_media_path', 'scores']) # Update analysis and annotated image path
             
             content["ai_analysis"] = ai_analysis
             content["stroke_type"] = stroke_type
@@ -146,28 +148,63 @@ def upload_detail(request, upload_id):
 @login_required
 def training(request):
     training_plan = request.session.get('training_plan', None)
-    user_profile = get_object_or_404(UserProfile, user=request.user)
+    user_uploads = Upload.objects.filter(username=request.user.username, scores__isnull=False)
 
     score_labels = [
         "Coordination", "Breathing technique", "Body alignment",
         "Arm stroke efficiency", "Kick technique"
     ]
-    score_values = [
-        user_profile.coordination_score,
-        user_profile.breathing_technique_score,
-        user_profile.body_alignment_score,
-        user_profile.arm_stroke_efficiency_score,
-        user_profile.kick_technique_score,
-    ]
+    
+    if user_uploads.exists():
+        total_scores = {label: [] for label in score_labels}
+        for upload in user_uploads:
+            if upload.scores:
+                for category, score in upload.scores.items():
+                    if category in total_scores:
+                        total_scores[category].append(score)
+
+        avg_scores = {}
+        for category, scores in total_scores.items():
+            if scores:
+                avg_scores[category] = sum(scores) / len(scores)
+            else:
+                avg_scores[category] = 0
+
+        score_values = [avg_scores.get(label, 0) for label in score_labels]
+    else:
+        # Fallback to user profile scores if no uploads have scores
+        user_profile = get_object_or_404(UserProfile, user=request.user)
+        score_values = [
+            user_profile.coordination_score,
+            user_profile.breathing_technique_score,
+            user_profile.body_alignment_score,
+            user_profile.arm_stroke_efficiency_score,
+            user_profile.kick_technique_score,
+        ]
 
     scores_with_labels = sorted(zip(score_labels, score_values), key=lambda item: item[1])
     areas_for_improvement = scores_with_labels[:2]
+
+  
+    videos = []
+    
+    if areas_for_improvement:
+        
+        improvement_area_name = areas_for_improvement[0][0]
+        query = f"swimming {improvement_area_name} drill"
+        try:
+            
+            videos = get_youtube_videos(query, max_results=3)
+        except Exception as e:
+            print(f"Error fetching YouTube videos: {e}")
+            
 
     context = {
         'training_plan': training_plan,
         'score_labels': json.dumps(score_labels),
         'score_values': json.dumps(score_values),
         'areas_for_improvement': areas_for_improvement,
+        'videos': videos,
     }
     return render(request, "training.html", context)
 

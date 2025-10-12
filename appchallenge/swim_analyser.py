@@ -265,7 +265,7 @@ SWIMMING LEVEL CONTEXT:
 
 Please only these sections and provide in humanlike language in english in second person:
 
-First, provide a JSON object with scores from 1 to 10 and be generous in giving those scores for the following categories based on the data. The JSON object should be enclosed in triple backticks.
+First, provide a JSON object with scores from 1 to 10 and give higher scores to more experienced swimmers. Give those scores for the following categories based on the data. The JSON object should be enclosed in triple backticks.
 ```json
 {{
   "scores": {{ "Coordination": <score>, "Breathing technique": <score>, "Body alignment": <score>, "Arm stroke efficiency": <score>, "Kick technique": <score> }}
