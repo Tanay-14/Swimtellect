@@ -15,6 +15,9 @@ from .youtube import get_youtube_videos
 def landing(request):
     return render(request, "landing.html")
 
+def contact(request):
+    return render(request, "contact.html")
+
 def user_login(request):
     role = request.GET.get("next_role","customer")
     if request.method == "POST":

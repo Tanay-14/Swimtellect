@@ -31,6 +31,7 @@ urlpatterns = [
     path("training/", views.training, name="training"),
     path("generate-plan/", views.generate_plan, name="generate_plan"),
     path("dashboard/", views.dashboard, name="dashboard"),
+    path("contact/", views.contact, name="contact"),
     path("", views.landing, name="landing"),
 
 ]
