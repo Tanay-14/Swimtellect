@@ -1,0 +1,48 @@
+
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Login - SwimTellect{% endblock %}
+
+{% block content %}
+<style>
+    body {
+        background: url("{% static 'images/pool-water.jpg.jpg' %}") no-repeat center center fixed;
+        background-size: cover;
+    }
+
+    .logo-container {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .form-logo {
+        width: 250px;
+        height: auto;
+        margin-bottom: 10px;
+    }
+
+</style>
+<div class="login-container">
+    <div class="logo-container">
+        <img src="{% static 'images/swimiq-logo-new.png' %}" alt="SwimTellect Logo" class="form-logo">
+    </div>
+    <h2>Welcome Back to SwimTellect</h2>
+
+    {% if messages %}
+        {% for message in messages %}
+            <p class="message">{{ message }}</p>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post" class="login-form">
+        {% csrf_token %}
+        <label>Username:</label>
+        <input type="text" name="username" required>
+        <br>
+        <label>Password:</label>
+        <input type="password" name="password" required>
+        <br>
+        <button type="submit">Login</button>
+    </form>
+</div>
+{% endblock %}
